@@ -35,7 +35,7 @@ pico_sdk_init()
 
 # Add executable. Default name is the project name, version 0.1
 
-add_executable(CanSat main.c )
+add_executable(CanSat main.c libraries/BME280_SensorAPI-master/bme280.c)
 
 pico_set_program_name(CanSat "CanSat")
 pico_set_program_version(CanSat "0.1")
@@ -51,6 +51,7 @@ target_link_libraries(CanSat
 # Add the standard include files to the build
 target_include_directories(CanSat PRIVATE
   ${CMAKE_CURRENT_LIST_DIR}
+  ${CMAKE_CURRENT_LIST_DIR}/libraries/BME280-SensorAPI-master
 )
 
 # Add any user requested libraries
