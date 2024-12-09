@@ -9,7 +9,10 @@
 
 Adafruit_BME280 bme; // I2C (default pins for Raspberry Pi Pico: GPIO 4 (SDA), GPIO 5(SCL)
 
+// variables
 unsigned long delayTime;
+float internalTemp;
+
 void setup() {
   Serial.begin(9600);
   Serial.println("IJFAOIAJFPOIJAFS");
@@ -43,6 +46,7 @@ void loop() {
   delay(delayTime);
   digitalWrite(LED_BUILTIN, LOW);
   delay(delayTime);
+  internalTemperature();
 }
 
 void printValues() {
@@ -63,4 +67,10 @@ void printValues() {
   Serial.println(" %");
 
   Serial.println();
+}
+
+void internalTemperature() {
+  internalTemp = analogReadTemp();
+  Serial.print("Internal temperature Celsius (ºC): ");
+  Serial.println(tempC);
 }
