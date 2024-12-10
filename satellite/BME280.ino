@@ -15,10 +15,9 @@ float internalTemp;
 
 void setup() {
   Serial.begin(9600);
-  Serial.println("IJFAOIAJFPOIJAFS");
   
-  Wire.setSDA(8);
-  Wire.setSCL(9);
+  Wire.setSDA(12);
+  Wire.setSCL(13);
   Wire.begin();
   
   pinMode(LED_BUILTIN, OUTPUT);
@@ -72,5 +71,5 @@ void printValues() {
 void internalTemperature() {
   internalTemp = analogReadTemp();
   Serial.print("Internal temperature Celsius (ºC): ");
-  Serial.println(tempC);
+  Serial.println(internalTemp);
 }
