@@ -3,100 +3,103 @@
 #include <Adafruit_BME280.h>
 #include <SPI.h>
 #include <LoRa.h>
+#include <Arduino_JSON.h>
+
 // MAIN CODE FOR SATELLITE
 
 #define SEALEVELPRESSURE_HPA (1013.25)
-
-
-Adafruit_BME280 bme; // I2C (default pins for Raspberry Pi Pico: GPIO 4 (SDA), GPIO 5(SCL)
-
+#define BME280_RUNNING false
 
 // Pin definitions for LoRa module
 #define SS_PIN 17   // Chip Select (GPIO 17)
 #define RST_PIN 27  // Reset (GPIO 27)
 #define DIO0_PIN 28 // IRQ (GPIO 28)
 
-float readInternalTemp();
+Adafruit_BME280 bme; // I2C (default pins for Raspberry Pi Pico: GPIO 4 (SDA), GPIO 5(SCL)
+
+
+// Function declarations
+JSONVar getSensorData();
 void toggleLED();
 void sendPacket();
-void printValues();
 void loraSetup();
 void bmeSetup();
 
-// variables
-int counter = 0;
+// Global variables
+const unsigned int ledTimeout = 300;
+const unsigned int delayTime = 1000 - ledTimeout;
+unsigned int counter = 0;
 bool led_state = false;
-unsigned long delayTime;
 float internalTemp;
+
 
 void setup() {
   Serial.begin(115200);
+  Serial.println("Raspberry Pi Pico powered Satellite SteinSat\n");
   
-  Wire.setSDA(12);
-  Wire.setSCL(13);
-  Wire.begin();
-  
-  pinMode(LED_BUILTIN, OUTPUT);
-
-  Serial.println("Raspberry Pi Pico powered Satellite SteinSat");
-
-  // TODO UNCOMMENT WHEN WORKING BME MODULE IS INSTALLED
-  // bmeSetup(); 
-
-  delayTime = 1000;
-
-  Serial.println();
+  if(BME280_RUNNING) {
+    Wire.setSDA(12);
+    Wire.setSCL(13);
+    Wire.begin();
+    bmeSetup();
+  }
 
   loraSetup();
 }
-
 
 void loop() { 
   sendPacket();
   delay(delayTime);
 }
 
-// for now there will be only hard-coded data which will be sent, later I'll add more modularity 
+
 void sendPacket() {
   Serial.print("Sending packet: ");
   Serial.println(counter);
 
   // Start LoRa packet
   LoRa.beginPacket();
-  LoRa.print(readInternalTemp());
-  LoRa.print("°C, counter: ");
-  LoRa.print(counter);
+
+  // Get sensor data & add packet count to payload
+  JSONVar jsonData = getSensorData();
+  jsonData["counter"] = counter;
+  
+  // Convert JSON object to string
+  String payload = JSON.stringify(jsonData);
+  
+  LoRa.print(payload);
+  
   LoRa.endPacket();
+
+  // Signal sent packet
   toggleLED();
   delay(300);
   toggleLED();
 
   counter++;
-  delay(1000); // Send every second
 }
 
-void printValues() {
-  Serial.print("Temperature = ");
-  Serial.print(bme.readTemperature());
-  Serial.println(" °C");
+JSONVar getSensorData() {
+  // Read sensor data
+  float onboardTemperature = analogReadTemp();
+  float temperature = bme.readTemperature();
+  float pressure = bme.readPressure() / 100.0F;
+  float altitude = bme.readAltitude(SEALEVELPRESSURE_HPA);
+  float humidity = bme.readHumidity();
+
+  // Create JSON object
+  JSONVar jsonData;
+
+  jsonData["onboard_temperature"] = onboardTemperature;
   
-  Serial.print("Pressure = ");
-  Serial.print(bme.readPressure() / 100.0F);
-  Serial.println(" hPa");
+  if(BME280_RUNNING) {
+    jsonData["temperature"] = temperature;
+    jsonData["pressure"] = pressure;
+    jsonData["altitude"] = altitude;
+    jsonData["humidity"] = humidity;
+  }
 
-  Serial.print("Approx. Altitude = ");
-  Serial.print(bme.readAltitude(SEALEVELPRESSURE_HPA));
-  Serial.println(" m");
-
-  Serial.print("Humidity = ");
-  Serial.print(bme.readHumidity());
-  Serial.println(" %");
-
-  Serial.println();
-}
-
-float readInternalTemp() {
-  return analogReadTemp();
+  return jsonData;
 }
 
 void toggleLED() {
@@ -113,7 +116,7 @@ void bmeSetup() {
   status = bme.begin(0x76);  
   if (!status) {
     Serial.println("Could not find a valid BME280 sensor, check wiring!");
-    while (1);
+    while (true);
   }
 }
 
