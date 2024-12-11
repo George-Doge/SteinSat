@@ -14,7 +14,6 @@ void toggleLED();
 
 void setup() {
   Serial.begin(115200);
-  while (!Serial);
 
   Serial.println("LoRa Sender");
 

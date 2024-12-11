@@ -1,6 +1,8 @@
 #include <SPI.h>
 #include <LoRa.h>
 
+// LoRa MODUE CODE FOR GROUND STATION
+
 // Pin definitions for LoRa module
 #define SS_PIN 17   // Chip Select (GPIO 17)
 #define RST_PIN 27  // Reset (GPIO 27)
@@ -9,25 +11,15 @@
 bool led_state = 0;
 
 void toggleLED();
+void loraSetup();
+float readInternalTemp();
 
 void setup() {
   Serial.begin(115200);
   while (!Serial);
 
-  Serial.println("LoRa Receiver");
-
-  // Initialize LoRa module
-  LoRa.setPins(SS_PIN, RST_PIN, DIO0_PIN);
-
-  // Set frequency (433 MHz for Asia/Europe or 915 MHz for North America)
-  if (!LoRa.begin(433E6)) {
-    Serial.println("LoRa initialization failed. Check your connections.");
-    while (true);
-  }
-
-  // Set sync word to ensure communication is only between these devices
-  LoRa.setSyncWord(0xF3);
-  Serial.println("LoRa initialization successful!");
+  Serial.println("SteinSat Ground Station");
+  loraSetup(); 
 }
 
 void loop() {
@@ -51,7 +43,27 @@ void loop() {
   }
 }
 
+void loraSetup() {
+  Serial.println("Running LoRa initialization!");
+  // Initialize LoRa module
+  LoRa.setPins(SS_PIN, RST_PIN, DIO0_PIN);
+
+  // Set frequency (433 MHz for Asia/Europe or 915 MHz for North America)
+  if (!LoRa.begin(433E6)) {
+    Serial.println("LoRa initialization failed. Check your connections.");
+    while (true);
+  }
+
+  // Set sync word to ensure communication is only between these devices
+  LoRa.setSyncWord(0xF3);
+  Serial.println("LoRa initialization successful!");
+}
+
 void toggleLED() {
   led_state = !led_state;
   digitalWrite(LED_BUILTIN, led_state);
+}
+
+float readInternalTemp() {
+  return analogReadTemp();
 }
