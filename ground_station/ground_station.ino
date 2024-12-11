@@ -21,6 +21,8 @@ bool led_state = 0;
 
 
 void setup() {
+  pinMode(LED_BUILTIN, OUTPUT);
+  
   Serial.begin(115200);
   while (!Serial);
 
@@ -29,7 +31,7 @@ void setup() {
 }
 
 void loop() {
-  String receivedPayload;
+  String receivedPayload = "";
   // Check for incoming packets
   int packetSize = LoRa.parsePacket();
   if (packetSize) {
