@@ -8,6 +8,7 @@ We are developing it using [Arduino IDE 2.x](https://github.com/arduino/arduino-
 - `ground-station` contains code used in our ground station
 - `satellite` contains code used onboard our satellite
 
+
 ## Used libraries
 - [Adafruit BME280](https://github.com/adafruit/Adafruit_BME280_Library)
 - [Adafruit Unified Sensor](https://github.com/adafruit/Adafruit_Sensor)
