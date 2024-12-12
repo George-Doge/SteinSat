@@ -1,20 +1,28 @@
 #include <SPI.h>
 #include <LoRa.h>
+#include <Arduino_JSON.h>
 
 // LoRa MODUE CODE FOR GROUND STATION
+
+#define BME280_RUNNING false
 
 // Pin definitions for LoRa module
 #define SS_PIN 17   // Chip Select (GPIO 17)
 #define RST_PIN 27  // Reset (GPIO 27)
 #define DIO0_PIN 28 // IRQ (GPIO 28)
 
-bool led_state = 0;
-
+// Function declarations
 void toggleLED();
 void loraSetup();
-float readInternalTemp();
+void printPayload(JSONVar parsedJson);
+
+// Variables
+bool led_state = 0;
+
 
 void setup() {
+  pinMode(LED_BUILTIN, OUTPUT);
+  
   Serial.begin(115200);
   while (!Serial);
 
@@ -23,20 +31,27 @@ void setup() {
 }
 
 void loop() {
-// Check for incoming packets
+  String receivedPayload = "";
+  // Check for incoming packets
   int packetSize = LoRa.parsePacket();
   if (packetSize) {
     Serial.print("Received packet: ");
 
     // Read packet data
     while (LoRa.available()) {
-      Serial.print((char)LoRa.read());
+      receivedPayload += (char)LoRa.read();
     }
 
-    // Print RSSI (signal strength)
-    Serial.print(" with RSSI ");
-    Serial.println(LoRa.packetRssi());
+    JSONVar parsedPayload = JSON.parse(receivedPayload);
 
+    // Check if parsing was successful
+    if (JSON.typeof(parsedPayload) == "undefined") {
+      Serial.println("Parsing JSON failed!");
+    }
+
+    printPayload(parsedPayload);
+    
+    // Signal received packet
     toggleLED();
     delay(300);
     toggleLED();
@@ -59,11 +74,27 @@ void loraSetup() {
   Serial.println("LoRa initialization successful!");
 }
 
+void printPayload(JSONVar parsedJson) {
+  if(BME280_RUNNING) {
+      String temperature = parsedJson["temperature"];
+      String pressure = parsedJson["pressure"];
+      String altitude = parsedJson["altitude"];
+      String humidity = parsedJson["humidity"];
+      
+      Serial.println("The outside temperature is " + temperature + "°C.");
+      Serial.println("The pressure is " + pressure + "hPa.");
+      Serial.println("The estimated altitude is " + altitude + "m.");
+      Serial.println("The humidity is " + humidity + "%.");
+    }
+    
+    String onboardTemperature = parsedJson["onboard_temperature"];
+    String counter = parsedJson["counter"];
+    
+    Serial.println("The onboard temperature is " + onboardTemperature + "°C.");
+    Serial.println("Packet count: "+ counter);
+}
+
 void toggleLED() {
   led_state = !led_state;
   digitalWrite(LED_BUILTIN, led_state);
-}
-
-float readInternalTemp() {
-  return analogReadTemp();
 }
