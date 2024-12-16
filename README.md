@@ -13,3 +13,4 @@ We are developing it using [Arduino IDE 2.x](https://github.com/arduino/arduino-
 - [Adafruit BME280](https://github.com/adafruit/Adafruit_BME280_Library)
 - [Adafruit Unified Sensor](https://github.com/adafruit/Adafruit_Sensor)
 - [Arduino LoRa](https://github.com/sandeepmistry/arduino-LoRa)
+- [Arduino JSON](https://github.com/arduino-libraries/Arduino_JSON)
