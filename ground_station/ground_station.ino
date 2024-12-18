@@ -42,14 +42,16 @@ void loop() {
       receivedPayload += (char)LoRa.read();
     }
 
-    JSONVar parsedPayload = JSON.parse(receivedPayload);
+    // JSONVar parsedPayload = JSON.parse(receivedPayload);
 
     // Check if parsing was successful
-    if (JSON.typeof(parsedPayload) == "undefined") {
-      Serial.println("Parsing JSON failed!");
-    }
+    // if (JSON.typeof(parsedPayload) == "undefined") {
+    //   Serial.println("Parsing JSON failed!");
+    // }
 
-    printPayload(parsedPayload);
+    // printPayload(parsedPayload);
+
+    Serial.println(receivedPayload);
     
     // Signal received packet
     toggleLED();
