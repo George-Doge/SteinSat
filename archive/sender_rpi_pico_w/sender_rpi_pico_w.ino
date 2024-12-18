@@ -5,21 +5,18 @@
 #include <LoRa.h>
 #include <Arduino_JSON.h>
 
-// MAIN CODE FOR SATELLITE WITH ESP8266 (ESP12E Motor Shield Compatible)
+// MAIN CODE FOR SATELLITE
 
 #define SEALEVELPRESSURE_HPA (1013.25)
 #define BME280_RUNNING false
 
-// Pin definitions for LoRa module (ESP8266)
-#define SS_PIN 15   // Chip Select (GPIO 15 / D8)
-#define RST_PIN 0  // Reset (GPIO 0 / D3)
-#define DIO0_PIN 4  // IRQ (GPIO 4 / D2)
+// Pin definitions for LoRa module
+#define SS_PIN 17   // Chip Select (GPIO 17)
+#define RST_PIN 27  // Reset (GPIO 27)
+#define DIO0_PIN 28 // IRQ (GPIO 28)
 
-// BME280 I2C Pins for ESP8266
-#define SDA_PIN 5 // D1
-#define SCL_PIN 2 // D4
+Adafruit_BME280 bme; // I2C (default pins for Raspberry Pi Pico: GPIO 4 (SDA), GPIO 5(SCL)
 
-Adafruit_BME280 bme; // I2C connection
 
 // Function declarations
 JSONVar getSensorData();
@@ -35,24 +32,28 @@ unsigned int counter = 0;
 bool led_state = false;
 float internalTemp;
 
+
 void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
-
+  
   Serial.begin(115200);
-  Serial.println("ESP8266 powered Satellite SteinSat\n");
-
-  if (BME280_RUNNING) {
-    Wire.begin(SDA_PIN, SCL_PIN);
+  Serial.println("Raspberry Pi Pico powered Satellite SteinSat\n");
+  
+  if(BME280_RUNNING) {
+    Wire.setSDA(12);
+    Wire.setSCL(13);
+    Wire.begin();
     bmeSetup();
   }
 
   loraSetup();
 }
 
-void loop() {
+void loop() { 
   sendPacket();
   delay(delayTime);
 }
+
 
 void sendPacket() {
   Serial.print("Sending packet: ");
@@ -64,35 +65,41 @@ void sendPacket() {
   // Get sensor data & add packet count to payload
   JSONVar jsonData = getSensorData();
   jsonData["counter"] = counter;
-
+  
   // Convert JSON object to string
   String payload = JSON.stringify(jsonData);
-
+  
   LoRa.print(payload);
-
+  
   LoRa.endPacket();
 
   // Signal sent packet
   toggleLED();
-  delay(ledTimeout);
+  delay(300);
   toggleLED();
 
-  // Count packets sent
   counter++;
 }
 
 JSONVar getSensorData() {
+  // Read sensor data
+  float onboardTemperature = analogReadTemp();
+  float temperature = bme.readTemperature();
+  float pressure = bme.readPressure() / 100.0F;
+  float altitude = bme.readAltitude(SEALEVELPRESSURE_HPA);
+  float humidity = bme.readHumidity();
+
+  // Create JSON object
   JSONVar jsonData;
 
-  if (BME280_RUNNING) {
-    jsonData["temperature"] = bme.readTemperature();
-    jsonData["pressure"] = bme.readPressure() / 100.0F;
-    jsonData["altitude"] = bme.readAltitude(SEALEVELPRESSURE_HPA);
-    jsonData["humidity"] = bme.readHumidity();
+  jsonData["onboard_temperature"] = onboardTemperature;
+  
+  if(BME280_RUNNING) {
+    jsonData["temperature"] = temperature;
+    jsonData["pressure"] = pressure;
+    jsonData["altitude"] = altitude;
+    jsonData["humidity"] = humidity;
   }
-
-  // Replace with ESP8266 internal temperature sensor reading if available
-  jsonData["onboard_temperature"] = readInternalTemp();
 
   return jsonData;
 }
@@ -102,14 +109,21 @@ void toggleLED() {
   digitalWrite(LED_BUILTIN, led_state);
 }
 
-float readInternalTemp() {
-  // Placeholder for ESP8266 internal temp (if required)
-  return 25.0; // Replace with actual onboard temperature if available
+void bmeSetup() {
+  Serial.println("Running BME280 initialization!");
+  bool status;
+
+  // default settings
+  // (you can also pass in a Wire library object like &Wire2)
+  status = bme.begin(0x76);  
+  if (!status) {
+    Serial.println("Could not find a valid BME280 sensor, check wiring!");
+    while (true);
+  }
 }
 
 void loraSetup() {
   Serial.println("Running LoRa initialization!");
-
   // Initialize LoRa module
   LoRa.setPins(SS_PIN, RST_PIN, DIO0_PIN);
 
@@ -122,12 +136,4 @@ void loraSetup() {
   // Set sync word to ensure communication is only between these devices
   LoRa.setSyncWord(0xF3);
   Serial.println("LoRa initialization successful!");
-}
-
-void bmeSetup() {
-  if (!bme.begin(0x76)) {
-    Serial.println("Could not find a valid BME280 sensor, check wiring!");
-    while (true);
-  }
-  Serial.println("BME280 sensor initialization successful!");
 }
