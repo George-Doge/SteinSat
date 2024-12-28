@@ -35,7 +35,7 @@ void loop() {
   // Check for incoming packets
   int packetSize = LoRa.parsePacket();
   if (packetSize) {
-    Serial.print("Received packet: ");
+    // Serial.print("Received packet: ");
 
     // Read packet data
     while (LoRa.available()) {
