@@ -30,11 +30,13 @@ void setup() {
 void loop() {
   int packetSize = LoRa.parsePacket();
   if (packetSize) {
+
     unsigned char payloadSize = sizeof(float) * sensorsNum + sizeof(unsigned long) + 1;
     if (packetSize != payloadSize) {
       Serial.println("Error: Packet size mismatch.");
       return;
     }
+
 
     uint8_t message[payloadSize];
     
