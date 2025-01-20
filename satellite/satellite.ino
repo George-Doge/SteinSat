@@ -4,19 +4,19 @@
 #include <SPI.h>
 #include <LoRa.h>
 
-// MAIN CODE FOR SATELLITE WITH ESP8266 (ESP12E Motor Shield Compatible)
+// MAIN CODE FOR SATELLITE WITH RPi Pico W
 
 #define SEALEVELPRESSURE_HPA (1013.25)
 #define BME280_RUNNING false
 
-// Pin definitions for LoRa module (ESP8266)
-#define SS_PIN 15   // Chip Select (GPIO 15 / D8)
-#define RST_PIN 0  // Reset (GPIO 0 / D3)
-#define DIO0_PIN 4  // IRQ (GPIO 4 / D2)
+// Pin definitions for LoRa module
+#define SS_PIN 17   // Chip Select (GPIO 17)
+#define RST_PIN 27  // Reset (GPIO 27)
+#define DIO0_PIN 28 // IRQ (GPIO 28)
 
-// BME280 I2C Pins for ESP8266
-#define SDA_PIN 5 // D1
-#define SCL_PIN 2 // D4
+// BME280 I2C Pins for RPi Pico W
+#define SDA_PIN 12 // D1
+#define SCL_PIN 13 // D4
 
 
 Adafruit_BME280 bme; // I2C connection
@@ -37,6 +37,8 @@ void setup() {
   Serial.println("ESP8266 powered Satellite SteinSat\n");
 
   if (BME280_RUNNING) {
+    Wire.setSDA(SDA_PIN);
+    Wire.setSCL(SCL_PIN);
     Wire.begin();
     bmeSetup();
     sensorsNum += 4;
@@ -156,8 +158,10 @@ void loraSetup() {
 }
 
 void bmeSetup() {
+  Serial.println("Initializing BME280 sensor...");
   if (!bme.begin(0x76)) {
-    Serial.println("Could not find a valid BME280 sensor, check wiring!");
+    Serial.println("Error: Could not find a valid BME280 sensor. Check wiring and I2C address!");
+    // Optionally halt the system if the BME280 is critical
     while (true);
   }
   Serial.println("BME280 sensor initialization successful!");
@@ -166,7 +170,7 @@ void bmeSetup() {
 void getSensorData(float* data) {
   unsigned char queue = 0;
 
-  data[queue++] = 24.5;
+  data[queue++] = analogReadTemp();
 
   if (BME280_RUNNING) {
     data[queue++] = bme.readTemperature();

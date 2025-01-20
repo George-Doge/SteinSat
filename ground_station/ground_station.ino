@@ -4,10 +4,10 @@
 
 #define BME280_RUNNING false
 
-// Pin definitions for LoRa module
-#define SS_PIN 17   // Chip Select (GPIO 17)
-#define RST_PIN 27  // Reset (GPIO 27)
-#define DIO0_PIN 28 // IRQ (GPIO 28)
+// Pin definitions for LoRa module (ESP8266)
+#define SS_PIN 15   // Chip Select (GPIO 15 / D8)
+#define RST_PIN 0  // Reset (GPIO 0 / D3)
+#define DIO0_PIN 4  // IRQ (GPIO 4 / D2)
 
 // Variables
 unsigned long ledStartTime = 0;
@@ -19,7 +19,6 @@ void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
 
   Serial.begin(115200);
-  while (!Serial);
 
   Serial.println("SteinSat Ground Station");
   
