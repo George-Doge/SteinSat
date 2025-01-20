@@ -3,7 +3,6 @@
 #include <Adafruit_BME280.h>
 #include <SPI.h>
 #include <LoRa.h>
-#include <Arduino_JSON.h>
 
 // MAIN CODE FOR SATELLITE WITH ESP8266 (ESP12E Motor Shield Compatible)
 
@@ -19,21 +18,17 @@
 #define SDA_PIN 5 // D1
 #define SCL_PIN 2 // D4
 
+
 Adafruit_BME280 bme; // I2C connection
 
-// Function declarations
-JSONVar getSensorData();
-void toggleLED();
-void sendPacket();
-void loraSetup();
-void bmeSetup();
-
 // Global variables
+unsigned long ledStartTime = 0;
 const unsigned int ledTimeout = 300;
-const unsigned int delayTime = 1000 - ledTimeout;
-unsigned int counter = 0;
 bool led_state = false;
-float internalTemp;
+unsigned long counter = 1;
+unsigned char sensorsNum = 1;
+unsigned long lastPacketTime = 0; // Tracks the last time a packet was sent
+const unsigned long interval = 500; // Interval in milliseconds (500ms = 0.5 seconds)
 
 void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
@@ -42,69 +37,103 @@ void setup() {
   Serial.println("ESP8266 powered Satellite SteinSat\n");
 
   if (BME280_RUNNING) {
-    Wire.begin(SDA_PIN, SCL_PIN);
+    Wire.begin();
     bmeSetup();
+    sensorsNum += 4;
   }
 
   loraSetup();
 }
 
 void loop() {
-  sendPacket();
-  delay(delayTime);
+  unsigned long currentMillis = millis();
+
+  if (currentMillis - lastPacketTime >= interval) {
+    lastPacketTime = currentMillis;
+    sendPacket();
+  }
+
+  handleLED();
 }
 
 void sendPacket() {
+  unsigned char packetSize = sizeof(float) * sensorsNum + sizeof(unsigned long) + 1;
+  uint8_t payload[packetSize];
+  unsigned char arrayQueue = 0;
+  uint8_t checksum = 0;
+
+  // Cast float data into raw binary data
+  float sensorData[sensorsNum];
+  getSensorData(sensorData);
+
+  for (int i = 0; i < sensorsNum; i++) {
+    uint8_t binData[sizeof(float)];
+    toBinary(sensorData[i], binData);
+
+    if (arrayQueue + sizeof(binData) <= packetSize) {
+      memcpy(&payload[arrayQueue], binData, sizeof(binData));
+      arrayQueue += sizeof(binData);
+    } else {
+      Serial.println("Error: Payload array overflow.");
+      break;
+    }
+  }
+
+  uint8_t binPacketCounter[sizeof(unsigned long)];
+  ulongToBinary(counter, binPacketCounter);
+
+  if (arrayQueue + sizeof(binPacketCounter) <= packetSize) {
+    memcpy(&payload[arrayQueue], binPacketCounter, sizeof(binPacketCounter));
+    arrayQueue += sizeof(binPacketCounter);
+  } else {
+    Serial.println("Error: Payload array overflow.");
+  }
+
+  // Calculate checksum 
+  for (int i = 0; i < packetSize - 1; i++) { 
+    checksum ^= payload[i]; 
+  }
+
+  Serial.print("Calculated Checksum: ");
+  Serial.println(checksum, HEX);
+
+  // Append checksum to payload
+  if (arrayQueue <= packetSize) {
+    payload[arrayQueue] = checksum;
+  } else {
+    Serial.println("Error: Payload array overflow.");
+  }
+
   Serial.print("Sending packet: ");
   Serial.println(counter);
 
   // Start LoRa packet
   LoRa.beginPacket();
-
-  // Get sensor data & add packet count to payload
-  JSONVar jsonData = getSensorData();
-  jsonData["counter"] = counter;
-
-  // Convert JSON object to string
-  String payload = JSON.stringify(jsonData);
-
-  LoRa.print(payload);
-
+  LoRa.write(payload, packetSize); // Send the raw binary data
   LoRa.endPacket();
 
   // Signal sent packet
-  toggleLED();
-  delay(ledTimeout);
-  toggleLED();
+  signalLED();
 
   // Count packets sent
   counter++;
 }
 
-JSONVar getSensorData() {
-  JSONVar jsonData;
-
-  if (BME280_RUNNING) {
-    jsonData["temperature"] = bme.readTemperature();
-    jsonData["pressure"] = bme.readPressure() / 100.0F;
-    jsonData["altitude"] = bme.readAltitude(SEALEVELPRESSURE_HPA);
-    jsonData["humidity"] = bme.readHumidity();
+void signalLED() {
+  if (!led_state) {
+    // Turn on the LED
+    digitalWrite(LED_BUILTIN, HIGH);
+    ledStartTime = millis(); // Record the time when the LED was turned on
+    led_state = true;
   }
-
-  // Replace with ESP8266 internal temperature sensor reading if available
-  jsonData["onboard_temperature"] = readInternalTemp();
-
-  return jsonData;
 }
 
-void toggleLED() {
-  led_state = !led_state;
-  digitalWrite(LED_BUILTIN, led_state);
-}
-
-float readInternalTemp() {
-  // Placeholder for ESP8266 internal temp (if required)
-  return 25.0; // Replace with actual onboard temperature if available
+void handleLED() {
+  if (led_state && millis() - ledStartTime >= ledTimeout) {
+    // Turn off the LED after the timeout
+    digitalWrite(LED_BUILTIN, LOW);
+    led_state = false;
+  }
 }
 
 void loraSetup() {
@@ -119,6 +148,8 @@ void loraSetup() {
     while (true);
   }
 
+  LoRa.enableCrc();
+
   // Set sync word to ensure communication is only between these devices
   LoRa.setSyncWord(0xF3);
   Serial.println("LoRa initialization successful!");
@@ -130,4 +161,40 @@ void bmeSetup() {
     while (true);
   }
   Serial.println("BME280 sensor initialization successful!");
+}
+
+void getSensorData(float* data) {
+  unsigned char queue = 0;
+
+  data[queue++] = 24.5;
+
+  if (BME280_RUNNING) {
+    data[queue++] = bme.readTemperature();
+    data[queue++] = bme.readPressure() / 100.0F;
+    data[queue++] = bme.readAltitude(SEALEVELPRESSURE_HPA);
+    data[queue++] = bme.readHumidity();
+  }
+}
+
+union FloatToBinary {
+    float dec;             // The float value
+    uint8_t bin[sizeof(float)]; // Binary representation
+};
+
+// Function to convert float to binary
+void toBinary(float dec, uint8_t* bin) {
+    FloatToBinary converter;
+    converter.dec = dec;  // Assign the float value
+    memcpy(bin, converter.bin, sizeof(converter.bin));  // Copy binary data to output
+}
+
+union UlongToBinary {
+  unsigned long dec;
+  uint8_t bin[sizeof(unsigned long)];
+};
+
+void ulongToBinary(unsigned long dec, uint8_t* bin) {
+  UlongToBinary converter;
+  converter.dec = dec;
+  memcpy(bin, converter.bin, sizeof(converter.bin));
 }
