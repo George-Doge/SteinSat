@@ -1,32 +1,32 @@
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
-#include <Adafruit_BME280.h>
+#include <Adafruit_BMP280.h>
 #include <SPI.h>
 #include <LoRa.h>
 
-// MAIN CODE FOR SATELLITE WITH RPi Pico W
+// MAIN CODE FOR SATELLITE WITH RPi Pico 2
 
 #define SEALEVELPRESSURE_HPA (1013.25)
-#define BME280_RUNNING false
+#define BMP280_RUNNING false
 
 // Pin definitions for LoRa module
 #define SS_PIN 17   // Chip Select (GPIO 17)
 #define RST_PIN 27  // Reset (GPIO 27)
 #define DIO0_PIN 28 // IRQ (GPIO 28)
 
-// BME280 I2C Pins for RPi Pico W
+// BMP280 I2C Pins for RPi Pico 2
 #define SDA_PIN 12 // D1
 #define SCL_PIN 13 // D4
 
 
-Adafruit_BME280 bme; // I2C connection
+Adafruit_BMP280 bmp; // I2C connection
 
 // Global variables
 unsigned long ledStartTime = 0;
 const unsigned int ledTimeout = 300;
 bool led_state = false;
 unsigned long counter = 1;
-unsigned char sensorsNum = 1;
+unsigned char dataValuesNum = 1;
 unsigned long lastPacketTime = 0; // Tracks the last time a packet was sent
 const unsigned long interval = 500; // Interval in milliseconds (500ms = 0.5 seconds)
 
@@ -36,12 +36,12 @@ void setup() {
   Serial.begin(115200);
   Serial.println("ESP8266 powered Satellite SteinSat\n");
 
-  if (BME280_RUNNING) {
+  if (BMP280_RUNNING) {
     Wire.setSDA(SDA_PIN);
     Wire.setSCL(SCL_PIN);
     Wire.begin();
-    bmeSetup();
-    sensorsNum += 4;
+    bmpSetup();
+    dataValuesNum += 4;
   }
 
   loraSetup();
@@ -59,16 +59,16 @@ void loop() {
 }
 
 void sendPacket() {
-  unsigned char packetSize = sizeof(float) * sensorsNum + sizeof(unsigned long) + 1;
+  unsigned char packetSize = sizeof(float) * dataValuesNum + sizeof(unsigned long) + 1;
   uint8_t payload[packetSize];
   unsigned char arrayQueue = 0;
   uint8_t checksum = 0;
 
   // Cast float data into raw binary data
-  float sensorData[sensorsNum];
+  float sensorData[dataValuesNum];
   getSensorData(sensorData);
 
-  for (int i = 0; i < sensorsNum; i++) {
+  for (int i = 0; i < dataValuesNum; i++) {
     uint8_t binData[sizeof(float)];
     toBinary(sensorData[i], binData);
 
@@ -157,14 +157,14 @@ void loraSetup() {
   Serial.println("LoRa initialization successful!");
 }
 
-void bmeSetup() {
-  Serial.println("Initializing BME280 sensor...");
-  if (!bme.begin(0x76)) {
-    Serial.println("Error: Could not find a valid BME280 sensor. Check wiring and I2C address!");
-    // Optionally halt the system if the BME280 is critical
+void bmpSetup() {
+  Serial.println("Initializing BMP280 sensor...");
+  if (!bmp.begin(0x76)) {
+    Serial.println("Error: Could not find a valid BMP280 sensor. Check wiring and I2C address!");
+    // Optionally halt the system if the BMP280 is critical
     while (true);
   }
-  Serial.println("BME280 sensor initialization successful!");
+  Serial.println("BMP280 sensor initialization successful!");
 }
 
 void getSensorData(float* data) {
@@ -172,11 +172,10 @@ void getSensorData(float* data) {
 
   data[queue++] = analogReadTemp();
 
-  if (BME280_RUNNING) {
-    data[queue++] = bme.readTemperature();
-    data[queue++] = bme.readPressure() / 100.0F;
-    data[queue++] = bme.readAltitude(SEALEVELPRESSURE_HPA);
-    data[queue++] = bme.readHumidity();
+  if (BMP280_RUNNING) {
+    data[queue++] = bmp.readTemperature();
+    data[queue++] = bmp.readPressure() / 100.0F;
+    data[queue++] = bmp.readAltitude(SEALEVELPRESSURE_HPA);
   }
 }
 
