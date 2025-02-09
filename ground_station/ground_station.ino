@@ -2,28 +2,27 @@
 #include <LoRa.h>
 #include <Arduino_JSON.h>
 
-#define BME280_RUNNING false
+#define BMP280_RUNNING false
 
-// Pin definitions for LoRa module
-#define SS_PIN 17   // Chip Select (GPIO 17)
-#define RST_PIN 27  // Reset (GPIO 27)
-#define DIO0_PIN 28 // IRQ (GPIO 28)
+// Pin definitions for LoRa module (ESP8266)
+#define SS_PIN 15   // Chip Select (GPIO 15 / D8)
+#define RST_PIN 0  // Reset (GPIO 0 / D3)
+#define DIO0_PIN 4  // IRQ (GPIO 4 / D2)
 
 // Variables
 unsigned long ledStartTime = 0;
 const unsigned int ledTimeout = 300;
 bool led_state = false;
-unsigned char sensorsNum = 1;
+unsigned char dataValuesNum = 1;
 
 void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
 
   Serial.begin(115200);
-  while (!Serial);
 
   Serial.println("SteinSat Ground Station");
   
-  sensorsNum = BME280_RUNNING ? 5 : 1;
+  dataValuesNum = BMP280_RUNNING ? 4 : 1;
   loraSetup();
 }
 
@@ -31,7 +30,7 @@ void loop() {
   int packetSize = LoRa.parsePacket();
   if (packetSize) {
 
-    unsigned char payloadSize = sizeof(float) * sensorsNum + sizeof(unsigned long) + 1;
+    unsigned char payloadSize = sizeof(float) * dataValuesNum + sizeof(unsigned long) + 1;
     if (packetSize != payloadSize) {
       Serial.println("Error: Packet size mismatch.");
       return;
@@ -58,12 +57,12 @@ void loop() {
 
     // Reconstruct the float array
     float receivedPayload[(payloadSize - 1) / sizeof(float)];
-    for (int i = 0; i < sensorsNum; i++) {
+    for (int i = 0; i < dataValuesNum; i++) {
       memcpy(&receivedPayload[i], &message[i * sizeof(float)], sizeof(float));
     }
 
     unsigned long packetCount;
-    memcpy(&packetCount, &message[sensorsNum * sizeof(float)], sizeof(unsigned long));
+    memcpy(&packetCount, &message[dataValuesNum * sizeof(float)], sizeof(unsigned long));
 
     // Construct JSON output
     JSONVar output;
@@ -71,11 +70,10 @@ void loop() {
 
     output["isValid"] = isPacketValid;
     output["onboardTemperature"] = receivedPayload[queue++];
-    if (BME280_RUNNING) {
+    if (BMP280_RUNNING) {
       output["temperature"] = receivedPayload[queue++];
       output["pressure"] = receivedPayload[queue++];
       output["altitude"] = receivedPayload[queue++];
-      output["humidity"] = receivedPayload[queue++];
     }
     output["packetCount"] = packetCount;
 
