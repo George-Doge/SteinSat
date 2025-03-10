@@ -1,13 +1,18 @@
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BMP280.h>
+#include <Adafruit_MPU6050.h>
 #include <SPI.h>
 #include <LoRa.h>
 
 // MAIN CODE FOR SATELLITE WITH RPi Pico 2
 
 #define SEALEVELPRESSURE_HPA (1013.25)
-#define BMP280_RUNNING false
+#define BMP280_RUNNING true
+#define MPU6050_RUNNING true
+#define NEO6M_RUNNING false
+
+#define LORA_SYNCWORD 0xF3
 
 // Pin definitions for LoRa module
 #define SS_PIN 17   // Chip Select (GPIO 17)
@@ -15,11 +20,12 @@
 #define DIO0_PIN 28 // IRQ (GPIO 28)
 
 // BMP280 I2C Pins for RPi Pico 2
-#define SDA_PIN 12 // D1
-#define SCL_PIN 13 // D4
+#define SDA_PIN 20 // GPIO 20
+#define SCL_PIN 21 // GPIO 21
 
 
-Adafruit_BMP280 bmp; // I2C connection
+Adafruit_BMP280 bmp; // bmp object
+Adafruit_MPU6050 mpu; // mpu object
 
 // Global variables
 unsigned long ledStartTime = 0;
@@ -34,13 +40,19 @@ void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
 
   Serial.begin(115200);
-  Serial.println("ESP8266 powered Satellite SteinSat\n");
+  Serial.println("Raspberry Pi Pico 2 powered Satellite SteinSat\n");
+
+  Wire.setSDA(SDA_PIN);
+  Wire.setSCL(SCL_PIN);
+  Wire.begin();
 
   if (BMP280_RUNNING) {
-    Wire.setSDA(SDA_PIN);
-    Wire.setSCL(SCL_PIN);
-    Wire.begin();
     bmpSetup();
+    dataValuesNum += 3;
+  }
+
+  if (MPU6050_RUNNING) {
+    mpuSetup();
     dataValuesNum += 4;
   }
 
@@ -153,7 +165,7 @@ void loraSetup() {
   LoRa.enableCrc();
 
   // Set sync word to ensure communication is only between these devices
-  LoRa.setSyncWord(0xF3);
+  LoRa.setSyncWord(LORA_SYNCWORD);
   Serial.println("LoRa initialization successful!");
 }
 
@@ -167,6 +179,18 @@ void bmpSetup() {
   Serial.println("BMP280 sensor initialization successful!");
 }
 
+void mpuSetup() {
+  Serial.println("Initializing MPU6050 sensor...");
+  if (!mpu.begin()) {
+    Serial.println("Could not find MPU6050 sensor...");
+  }
+  Serial.println("MPU6050 Sensor Initialized");
+  // Set sensor range
+  mpu.setAccelerometerRange(MPU6050_RANGE_2_G);
+  mpu.setGyroRange(MPU6050_RANGE_250_DEG);
+  mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
+}
+
 void getSensorData(float* data) {
   unsigned char queue = 0;
 
@@ -177,6 +201,23 @@ void getSensorData(float* data) {
     data[queue++] = bmp.readPressure() / 100.0F;
     data[queue++] = bmp.readAltitude(SEALEVELPRESSURE_HPA);
   }
+
+  if (MPU6050_RUNNING) {
+    sensors_event_t a, g, temp;
+    mpu.getEvent(&a, &g, &temp);
+    float acceleration_vector_components[3] = {a.acceleration.x, a.acceleration.y, a.acceleration.z};
+    float acceleration_vector_magnitude = calculate_magnitude(acceleration_vector_components);
+    data[queue++] = acceleration_vector_magnitude;
+
+    data[queue++] = g.gyro.x;
+    data[queue++] = g.gyro.y;
+    data[queue++] = g.gyro.z;
+  }
+}
+
+float calculate_magnitude(float* acceleration_vector_components) {
+  // This calculates the magnitude of the acceleration vector, presuming that z is facing down
+  return sqrt(pow(acceleration_vector_components[0], 2) + pow(acceleration_vector_components[1], 2) + pow(acceleration_vector_components[2]-9.81, 2));
 }
 
 union FloatToBinary {
