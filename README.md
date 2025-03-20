@@ -7,6 +7,7 @@ We are developing it using [Arduino IDE 2.x](https://github.com/arduino/arduino-
 - `ground_station` contains code used in our ground station using ESP8266
 - `satellite` contains code used onboard our satellite using Raspberry Pi Pico 2
 - `esp32_cam` contains code for ESP32 with camera
+- `reset_counter` in the `esp32_cam` directory contains camera counter reset code
 - `archive` contains code that is no longer used but might be useful for later or in case of reversing changes
 
 

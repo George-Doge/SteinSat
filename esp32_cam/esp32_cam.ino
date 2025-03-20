@@ -45,6 +45,7 @@
 #define PCLK_GPIO_NUM     22
 
 int pictureNumber = 0;
+int SLEEP_TIME_S = 1;
 
 void setup() {
   WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); //disable brownout detector
@@ -93,7 +94,7 @@ void setup() {
   }
   
   //Serial.println("Starting SD Card");
-  if(!SD_MMC.begin()){
+  if(!SD_MMC.begin("/sdcard", true)){
     Serial.println("SD Card Mount Failed");
     return;
   }
@@ -107,7 +108,9 @@ void setup() {
   camera_fb_t * fb = NULL;
   
   // Take Picture with Camera
-  fb = esp_camera_fb_get();  
+  fb = esp_camera_fb_get();
+  delay(1000);
+  fb = esp_camera_fb_get();
   if(!fb) {
     Serial.println("Camera capture failed");
     return;
@@ -140,9 +143,10 @@ void setup() {
   digitalWrite(4, LOW);
   rtc_gpio_hold_en(GPIO_NUM_4);
   
-  delay(2000);
+  delay(1000);
   Serial.println("Going to sleep now");
-  delay(2000);
+  esp_sleep_enable_timer_wakeup( SLEEP_TIME_S * 1000000);
+  delay(1000);
   esp_deep_sleep_start();
   Serial.println("This will never be printed");
 }
