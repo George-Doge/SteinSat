@@ -14,6 +14,7 @@ We are developing it using [Arduino IDE 2.x](https://github.com/arduino/arduino-
 ## Used libraries
 - [Adafruit BMP280](https://github.com/adafruit/Adafruit_BMP280_Library)
 - [Adafruit MPU6050](https://github.com/adafruit/Adafruit_MPU6050)
+- [TinyGPSPlus](https://github.com/mikalhart/TinyGPSPlus)
 - [Adafruit Unified Sensor](https://github.com/adafruit/Adafruit_Sensor)
 - [Arduino LoRa](https://github.com/sandeepmistry/arduino-LoRa)
 - [Arduino JSON](https://github.com/arduino-libraries/Arduino_JSON)

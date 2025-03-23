@@ -4,9 +4,9 @@
 
 #define BMP280_RUNNING true
 #define MPU6050_RUNNING true
-#define NEO6M_RUNNING false
+#define NEO8M_RUNNING false
 
-#define LORA_SYNCWORD 0xF3
+#define LORA_SYNCWORD 0x185
 
 // Pin definitions for LoRa module (ESP8266)
 #define SS_PIN 15   // Chip Select (GPIO 15 / D8)
@@ -35,6 +35,9 @@ void setup() {
   if (MPU6050_RUNNING)
     dataValuesNum += 4;
 
+  if (NEO8M_RUNNING)
+    dataValuesNum += 4;
+
   loraSetup();
 }
 
@@ -42,7 +45,7 @@ void loop() {
   int packetSize = LoRa.parsePacket();
   if (packetSize) {
 
-    unsigned char payloadSize = sizeof(float) * dataValuesNum + sizeof(unsigned long) + 1;
+    unsigned char payloadSize = sizeof(double) * dataValuesNum + sizeof(unsigned long) + 1;
     if (packetSize != payloadSize) {
       Serial.println("Error: Packet size mismatch.");
       return;
@@ -67,14 +70,14 @@ void loop() {
 
     bool isPacketValid = (receivedChecksum == calculatedChecksum);
 
-    // Reconstruct the float array
-    float receivedPayload[(payloadSize - 1) / sizeof(float)];
+    // Reconstruct the double array
+    double receivedPayload[(payloadSize - 1) / sizeof(double)];
     for (int i = 0; i < dataValuesNum; i++) {
-      memcpy(&receivedPayload[i], &message[i * sizeof(float)], sizeof(float));
+      memcpy(&receivedPayload[i], &message[i * sizeof(double)], sizeof(double));
     }
 
     unsigned long packetCount;
-    memcpy(&packetCount, &message[dataValuesNum * sizeof(float)], sizeof(unsigned long));
+    memcpy(&packetCount, &message[dataValuesNum * sizeof(double)], sizeof(unsigned long));
 
     // Construct JSON output
     JSONVar output;
@@ -94,6 +97,13 @@ void loop() {
       output["gyro_x"] = receivedPayload[queue++];
       output["gyro_y"] = receivedPayload[queue++];
       output["gyro_z"] = receivedPayload[queue++];
+    }
+
+    if (NEO8M_RUNNING) {
+      output["lat"] = receivedPayload[queue++];
+      output["lng"] = receivedPayload[queue++];
+      output["speed"] = receivedPayload[queue++];
+      output["alt_gps"] = receivedPayload[queue++];
     }
     // calculate how many packets have been lost
     if (lastPacketCount != packetCount - 1) {
