@@ -2,7 +2,11 @@
 #include <LoRa.h>
 #include <Arduino_JSON.h>
 
-#define BMP280_RUNNING false
+#define BMP280_RUNNING true
+#define MPU6050_RUNNING true
+#define NEO6M_RUNNING false
+
+#define LORA_SYNCWORD 0xF3
 
 // Pin definitions for LoRa module (ESP8266)
 #define SS_PIN 15   // Chip Select (GPIO 15 / D8)
@@ -14,6 +18,8 @@ unsigned long ledStartTime = 0;
 const unsigned int ledTimeout = 300;
 bool led_state = false;
 unsigned char dataValuesNum = 1;
+unsigned int lastPacketCount = 0;
+unsigned int packetsFailed = 0;
 
 void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
@@ -22,7 +28,13 @@ void setup() {
 
   Serial.println("SteinSat Ground Station");
   
-  dataValuesNum = BMP280_RUNNING ? 4 : 1;
+  dataValuesNum = 1;
+  if (BMP280_RUNNING)
+    dataValuesNum += 3;
+
+  if (MPU6050_RUNNING)
+    dataValuesNum += 4;
+
   loraSetup();
 }
 
@@ -75,8 +87,22 @@ void loop() {
       output["pressure"] = receivedPayload[queue++];
       output["altitude"] = receivedPayload[queue++];
     }
-    output["packetCount"] = packetCount;
 
+    if (MPU6050_RUNNING) {
+      output["acceleration_vector_magnitude"] = receivedPayload[queue++];
+
+      output["gyro_x"] = receivedPayload[queue++];
+      output["gyro_y"] = receivedPayload[queue++];
+      output["gyro_z"] = receivedPayload[queue++];
+    }
+    // calculate how many packets have been lost
+    if (lastPacketCount != packetCount - 1) {
+        packetsFailed += packetCount - lastPacketCount - 1;
+    }
+
+    output["packetCount"] = packetCount;
+    lastPacketCount = packetCount;
+    output["packetsFailed"] = packetsFailed;
     String printOutput = JSON.stringify(output);
     Serial.println(printOutput);
 
@@ -99,7 +125,7 @@ void loraSetup() {
   }
 
   LoRa.enableCrc();
-  LoRa.setSyncWord(0xF3); // Communication sync word
+  LoRa.setSyncWord(LORA_SYNCWORD); // Communication sync word
   Serial.println("LoRa initialization successful!");
 }
 
