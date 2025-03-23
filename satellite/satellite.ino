@@ -285,15 +285,15 @@ float calculate_magnitude(float* acceleration_vector_components) {
   return sqrt(pow(acceleration_vector_components[0], 2) + pow(acceleration_vector_components[1], 2) + pow(acceleration_vector_components[2]-9.81, 2));
 }
 
-union FloatToBinary {
-    float dec;             // The float value
-    uint8_t bin[sizeof(float)]; // Binary representation
+union DoubleToBinary {
+    double dec;             // The double value
+    uint8_t bin[sizeof(double)]; // Binary representation
 };
 
 // Function to convert float to binary
-void toBinary(float dec, uint8_t* bin) {
-    FloatToBinary converter;
-    converter.dec = dec;  // Assign the float value
+void toBinary(double dec, uint8_t* bin) {
+    DoubleToBinary converter;
+    converter.dec = dec;  // Assign the double value
     memcpy(bin, converter.bin, sizeof(converter.bin));  // Copy binary data to output
 }
 
