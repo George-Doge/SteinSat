@@ -36,7 +36,7 @@ void setup() {
     dataValuesNum += 4;
 
   if (NEO8M_RUNNING)
-    dataValuesNum += 4;
+    dataValuesNum += 5;
 
   loraSetup();
 }
@@ -102,8 +102,9 @@ void loop() {
     if (NEO8M_RUNNING) {
       output["lat"] = receivedPayload[queue++];
       output["lng"] = receivedPayload[queue++];
-      output["speed"] = receivedPayload[queue++];
+      output["speed_over_ground"] = receivedPayload[queue++];
       output["alt_gps"] = receivedPayload[queue++];
+      output["course_over_ground"] = receivedPayload[queue++];o
     }
     // calculate how many packets have been lost
     if (lastPacketCount != packetCount - 1) {

@@ -77,7 +77,7 @@ void setup() {
 
   if (NEO8M_RUNNING) {
     neoSetup();
-    dataValuesNum += 4;
+    dataValuesNum += 5;
   }
 
   loraSetup();
@@ -273,8 +273,9 @@ void getSensorData(double* data) {
       if (gps.location.isUpdated()) {
         data[queue++] = gps.location.lat();
         data[queue++] = gps.location.lng();
-        data[queue++] = gps.speed.mps();
+        data[queue++] = gps.speed.knots();
         data[queue++] = gps.altitude.meters();
+        data[queue++] = gps.course.deg();
       }
     }
   }
